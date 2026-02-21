@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: rag_bot_postgress
+    environment:
+      POSTGRES_USER: tapan
+      POSTGRES_PASSWORD: XSr+5m4DA3j
+      POSTGRES_DB: rag_bot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    restart: always
+
+volumes:
+  postgres_data:
