@@ -3,10 +3,16 @@ from fastapi import FastAPI, Depends, status
 import models
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
-from input_types import NewUserBase, AllUserData
+from input_types import NewUserBase, AllUserData, TextEmbedding, EmbeddingsResponse
 from fastapi.responses import JSONResponse
+from sentence_transformers import SentenceTransformer
+from sqlalchemy.sql import text
+from sqlalchemy import select
+
 
 app = FastAPI()
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 def create_db_and_tables():
@@ -60,3 +66,34 @@ async def get_all_user(db: db_dependency):
     result = db.query(models.UserData).all()
     print("result", result)
     return result
+
+
+@app.post("/get-embeddings")
+async def get_text_embeddings(user_text_input: TextEmbedding, db: db_dependency):
+    embeddings = generateEmbeddings(user_text_input.user_text)
+    new_embeddings = models.Document(
+        embedding=embeddings,
+        text=user_text_input.user_text,
+    )
+    db.add(new_embeddings)
+    db.commit()
+    return {"Data": "data"}
+
+
+@app.post("/ask-prompt", response_model=list[str])
+def ask_prompt(db: db_dependency, user_que: TextEmbedding):
+    print("user_que.user_text", user_que.user_text)
+    embeddings = generateEmbeddings(user_que.user_text)
+    print("embeddings", embeddings)
+    raw_query = select(models.Document.text).order_by(
+        models.Document.embedding.cosine_distance(embeddings)
+    )
+
+    data = db.execute(raw_query).scalars().all()
+    print(data)
+    return data
+
+
+def generateEmbeddings(user_text: str):
+    embeddings = model.encode(user_text)
+    return embeddings

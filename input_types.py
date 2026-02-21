@@ -11,3 +11,18 @@ class AllUserData(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TextEmbedding(BaseModel):
+    user_text: str
+
+
+class UserQue(BaseModel):
+    user_text: str
+
+
+class EmbeddingsResponse(BaseModel):
+    text: str
+
+    class Config:
+        from_attributes = True
