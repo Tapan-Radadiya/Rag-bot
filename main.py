@@ -9,12 +9,11 @@ from sentence_transformers import SentenceTransformer
 from sqlalchemy.sql import text
 from sqlalchemy import select
 from transformers import pipeline
+import requests
 
 app = FastAPI()
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
-
-pipe = pipeline("text-classification", model="google/gemma-3-1b-it")
 
 
 def create_db_and_tables():
@@ -82,17 +81,16 @@ async def get_text_embeddings(user_text_input: TextEmbedding, db: db_dependency)
     return {"Data": "data"}
 
 
-@app.post("/ask-prompt", response_model=list[EmbeddingsResponse])
+@app.post("/ask-prompt", response_model=list[str])
 def ask_prompt(db: db_dependency, user_que: TextEmbedding):
     embeddings = generateEmbeddings(user_que.user_text)
 
     distance = models.Document.embedding.cosine_distance(embeddings)
-    similarity = (1 - distance).label("similarity")
 
-    raw_query = select(models.Document.text, similarity).order_by(distance).limit(3)
+    raw_query = select(models.Document.text).order_by(distance).limit(3)
 
-    data = db.execute(raw_query).all()
-    print("data", data)
+    data = db.execute(raw_query).scalars().all()
+
     return data
 
 
