@@ -1,5 +1,8 @@
 version: '3.8'
 services:
+  fast_api:
+    build: .
+    container_name: FastApi_RagBot
   postgres:
     image: pgvector/pgvector:pg16
     container_name: rag_bot_postgress

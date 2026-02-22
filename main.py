@@ -9,6 +9,8 @@ from sentence_transformers import SentenceTransformer
 from sqlalchemy.sql import text
 from sqlalchemy import select
 from transformers import pipeline
+from fastapi.responses import StreamingResponse
+import json
 import requests
 
 app = FastAPI()
@@ -90,8 +92,55 @@ def ask_prompt(db: db_dependency, user_que: TextEmbedding):
     raw_query = select(models.Document.text).order_by(distance).limit(3)
 
     data = db.execute(raw_query).scalars().all()
+    response = StreamingResponse(askLocalLLM(user_que.user_text, data))
 
-    return data
+    return response
+
+
+def askLocalLLM(text: str, localContext: str):
+    formated_prompt = (
+        f"""You are a question-answering assistant.
+
+You must answer the user's question using ONLY the information provided in the CONTEXT section below.
+
+Rules:
+
+1. Use only the provided context to answer.
+2. Do NOT use your own knowledge or assumptions.
+3. If the answer is not explicitly present in the context, respond exactly with:
+   "I don't know based on the provided context."
+4. Do NOT guess.
+5. Do NOT add external facts.
+6. Keep the answer concise and factual.
+
+CONTEXT:
+{localContext}
+
+QUESTION:
+{text}
+
+ANSWER:"""
+        ""
+    )
+    print(formated_prompt)
+    response = requests.post(
+        "http://192.168.1.31:11434/api/generate",
+        json={
+            "model": "phi3",
+            "prompt": formated_prompt,
+            "stream": True,
+        },
+        stream=True,
+    )
+
+    for line in response.iter_lines():
+        if line:
+            chunk = json.loads(line.decode("utf-8"))
+            token = chunk.get("response", "")
+            print(token)
+            yield token
+            if chunk.get("done"):
+                break
 
 
 def generateEmbeddings(user_text: str):
