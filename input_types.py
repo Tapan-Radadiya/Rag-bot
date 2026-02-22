@@ -23,6 +23,7 @@ class UserQue(BaseModel):
 
 class EmbeddingsResponse(BaseModel):
     text: str
+    similarity: float
 
     class Config:
         from_attributes = True
