@@ -6,9 +6,7 @@ from sqlalchemy.orm import Session
 from input_types import NewUserBase, AllUserData, TextEmbedding, EmbeddingsResponse
 from fastapi.responses import JSONResponse
 from sentence_transformers import SentenceTransformer
-from sqlalchemy.sql import text
 from sqlalchemy import select
-from transformers import pipeline
 from fastapi.responses import StreamingResponse
 import json
 import requests
@@ -46,7 +44,6 @@ def test_route():
 
 @app.post("/new-user")
 async def insert_user(new_user: NewUserBase, db: db_dependency):
-    print("=====", new_user.user_email)
     result = (
         db.query(models.UserData)
         .filter(models.UserData.email == new_user.user_email)
@@ -73,6 +70,8 @@ async def get_all_user(db: db_dependency):
 
 @app.post("/get-embeddings")
 async def get_text_embeddings(user_text_input: TextEmbedding, db: db_dependency):
+    if not user_text_input.user_text:
+        return {"message": "Unable to get user text"}
     embeddings = generateEmbeddings(user_text_input.user_text)
     new_embeddings = models.Document(
         embedding=embeddings,
@@ -85,6 +84,8 @@ async def get_text_embeddings(user_text_input: TextEmbedding, db: db_dependency)
 
 @app.post("/ask-prompt", response_model=list[str])
 def ask_prompt(db: db_dependency, user_que: TextEmbedding):
+    if not user_que.user_text:
+        return {"message": "Unable to get user prompt"}
     embeddings = generateEmbeddings(user_que.user_text)
 
     distance = models.Document.embedding.cosine_distance(embeddings)
